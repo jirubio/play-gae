@@ -5,3 +5,4 @@ More information on: http://www.playframework.org/modules/gae
 Features added:
 -Make hrd datastore default
 -Fixed gae cache
+-Upgraded to appengine 1.7.4

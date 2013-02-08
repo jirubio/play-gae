@@ -1,47 +1,52 @@
 package play.modules.gae;
 
-import com.google.appengine.tools.development.ApiProxyLocal;
-import com.google.appengine.tools.development.ApiProxyLocalFactory;
-import com.google.appengine.tools.development.LocalServerEnvironment;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
-import com.google.apphosting.api.ApiProxy;
-import com.google.apphosting.api.ApiProxy.Environment;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+
 import play.Play;
 import play.mvc.Http;
 import play.mvc.Scope.Session;
 import play.server.Server;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.appengine.tools.development.LocalServerEnvironment;
+import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
+import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.apphosting.api.ApiProxy.Environment;
 
 public class PlayDevEnvironment implements Environment, LocalServerEnvironment {
 
     public static PlayDevEnvironment create() {
-        PlayDevEnvironment instance = new PlayDevEnvironment();
-        ApiProxyLocalFactory factory = new ApiProxyLocalFactory();
-        ApiProxyLocal proxy = factory.create(instance);
-        ApiProxy.setDelegate(proxy);
+        final PlayDevEnvironment instance = new PlayDevEnvironment();
         
         //Config datastore api. Save datastore file in tmp/
-		LocalDatastoreServiceTestConfig datastoreConfig = new LocalDatastoreServiceTestConfig();
-		datastoreConfig.setNoStorage(false);
-		datastoreConfig.setBackingStoreLocation(Play.applicationPath + "/tmp/datastore");
-		boolean enableMasterSlave = Boolean.parseBoolean(Play.configuration.getProperty("gae.datastore.enableMasterSlave", "false"));
-	    if(!enableMasterSlave){ //activate HRD
-	    	float unappliedJobPct = Float.parseFloat(Play.configuration.getProperty("gae.datastore.hrd.unappliedJobPct","50"));
-	    	datastoreConfig.setDefaultHighRepJobPolicyUnappliedJobPercentage(unappliedJobPct);
-	    }
-		datastoreConfig.setUp();
-	    
-	    // Use local implementation for deferred queues
-		LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
-		taskQueueConfig.setDisableAutoTaskExecution(false);
-		taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-		taskQueueConfig.setCallbackClass(LocalTaskQueueTestConfig.DeferredTaskCallback.class);
-		taskQueueConfig.setUp();
+  		LocalDatastoreServiceTestConfig datastoreConfig = new LocalDatastoreServiceTestConfig();
+  		datastoreConfig.setNoStorage(false);
+  		datastoreConfig.setBackingStoreLocation(Play.applicationPath + "/tmp/datastore");
+  		boolean enableMasterSlave = Boolean.parseBoolean(Play.configuration.getProperty("gae.datastore.enableMasterSlave", "false"));
+  	    if(!enableMasterSlave){ //activate HRD
+  	    	float unappliedJobPct = Float.parseFloat(Play.configuration.getProperty("gae.datastore.hrd.unappliedJobPct","50"));
+  	    	datastoreConfig.setDefaultHighRepJobPolicyUnappliedJobPercentage(unappliedJobPct);
+  	    }
+  	    
+  	    // Use local implementation for deferred queues
+  		LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
+  		taskQueueConfig.setDisableAutoTaskExecution(false);
+  		taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
+  		taskQueueConfig.setCallbackClass(LocalTaskQueueTestConfig.DeferredTaskCallback.class);
         
+        new LocalServiceTestHelper(datastoreConfig, taskQueueConfig){
+        	@Override
+        	protected Environment newEnvironment() {
+        		return instance;
+        	}
+        	@Override
+        	protected LocalServerEnvironment newLocalServerEnvironment() {
+        		return instance;
+        	}
+        }.setUp();
+
         return instance;
     }
 
@@ -147,6 +152,10 @@ public class PlayDevEnvironment implements Environment, LocalServerEnvironment {
         }
     }
 
+	@Override
+	public long getRemainingMillis() {
+		return  Long.MAX_VALUE;
+	}
 
 }
 
